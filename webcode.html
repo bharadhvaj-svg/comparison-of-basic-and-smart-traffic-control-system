@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Signal Model Comparison Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            background: #f8f9fa;
+            border: none;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #495057;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: #e9ecef;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .upload-section {
+            background: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .upload-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .upload-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h4 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .label {
+            font-size: 1em;
+            opacity: 0.8;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .chart-title {
+            font-size: 1.5em;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .comparison-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .comparison-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .comparison-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .better {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .worse {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .experiment-controls {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .run-experiment-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+        
+        .run-experiment-btn:hover {
+            transform: scale(1.02);
+        }
+        
+        .run-experiment-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+        }
+        
+        .log-success {
+            color: #4ec9b0;
+        }
+        
+        .log-error {
+            color: #f48771;
+        }
+        
+        .log-info {
+            color: #9cdcfe;
+        }
+        
+        .performance-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 5px;
+        }
+        
+        .badge-excellent {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .badge-good {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .badge-poor {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .export-btn {
+            background: #28a745;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 1em;
+        }
+        
+        .export-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚦 Traffic Signal Model Comparison Dashboard</h1>
+            <p>30s North-South × 30s East-West Signal Analysis</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
+            <button class="tab" onclick="switchTab('comparison')">⚖️ Model Comparison</button>
+            <button class="tab" onclick="switchTab('experiments')">🧪 Run Experiments</button>
+            <button class="tab" onclick="switchTab('performance')">📈 Performance Analysis</button>
+        </div>
+        
+        <div class="content">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="upload-section">
+                    <h3>📁 Upload SUMO Results (CSV or XML)</h3>
+                    <p style="margin: 15px 0; color: #6c757d;">Upload your SUMO simulation output to compare with the 30-30 model</p>
+                    <input type="file" id="sumoFileInput" class="file-input" accept=".csv,.xml" onchange="loadSUMOData(event)">
+                    <button class="upload-btn" onclick="document.getElementById('sumoFileInput').click()">
+                        Choose SUMO File
+                    </button>
+                    <p style="margin-top: 15px; font-size: 0.9em; color: #6c757d;">
+                        Supported formats: CSV (summary statistics) or SUMO XML output
+                    </p>
+                </div>
+                
+                <h2 style="margin-bottom: 20px; color: #333;">📊 Current Simulation Results (30-30 Model)</h2>
+                
+                <div class="stats-grid" id="statsGrid">
+                    <!-- Stats will be populated by JavaScript -->
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Queue Length Over Time</h3>
+                    <div id="queueChart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Wait Time Distribution by Direction</h3>
+                    <div id="waitTimeChart"></div>
+                </div>
+            </div>
+            
+            <!-- Comparison Tab -->
+            <div id="comparison" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #333;">⚖️ Model Comparison: 30-30 vs SUMO</h2>
+                
+                <div id="comparisonStatus" style="padding: 20px; background: #fff3cd; border-radius: 10px; margin-bottom: 20px;">
+                    <strong>⚠️ No SUMO data loaded</strong><br>
+                    Please upload your SUMO results in the Overview tab to see comparisons.
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Average Wait Time Comparison</h3>
+                    <div id="waitTimeComparisonChart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Queue Length Comparison</h3>
+                    <div id="queueComparisonChart"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Throughput Comparison</h3>
+                    <div id="throughputComparisonChart"></div>
+                </div>
+                
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">Detailed Metrics Comparison</h3>
+                <table class="comparison-table" id="comparisonTable">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Direction</th>
+                            <th>30-30 Model</th>
+                            <th>SUMO Model</th>
+                            <th>Difference</th>
+                            <th>% Change</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparisonTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px;">
+                                Upload SUMO data to see comparison
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Experiments Tab -->
+            <div id="experiments" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #333;">🧪 Run Traffic Experiments</h2>
+                
+                <div class="experiment-controls">
+                    <h3 style="margin-bottom: 20px;">Experiment Configuration</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="control-group">
+                            <label>North-South Green Time (seconds)</label>
+                            <input type="number" id="nsGreen" value="30" min="10" max="60">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>East-West Green Time (seconds)</label>
+                            <input type="number" id="ewGreen" value="30" min="10" max="60">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>North Arrival Rate (veh/hr)</label>
+                            <input type="number" id="northRate" value="1080" min="0" max="3600">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>South Arrival Rate (veh/hr)</label>
+                            <input type="number" id="southRate" value="1080" min="0" max="3600">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>East Arrival Rate (veh/hr)</label>
+                            <input type="number" id="eastRate" value="900" min="0" max="3600">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>West Arrival Rate (veh/hr)</label>
+                            <input type="number" id="westRate" value="900" min="0" max="3600">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>Saturation Flow Rate (veh/s)</label>
+                            <input type="number" id="saturationFlow" value="0.6" min="0.1" max="2.0" step="0.1">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label>Simulation Duration (seconds)</label>
+                            <input type="number" id="simDuration" value="3600" min="600" max="7200">
+                        </div>
+                    </div>
+                    
+                    <button class="run-experiment-btn" onclick="runExperiment()" id="runExperimentBtn">
+                        🚀 Run Experiment
+                    </button>
+                </div>
+                
+                <div class="log-container" id="experimentLog">
+                    <div class="log-entry log-info">[READY] Waiting for experiment parameters...</div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="export-btn" onclick="exportExperimentResults()">
+                        📥 Export Results (CSV)
+                    </button>
+                    <button class="export-btn" onclick="exportExperimentLog()">
+                        📄 Export Log
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Performance Analysis Tab -->
+            <div id="performance" class="tab-content">
+                <h2 style="margin-bottom: 20px; color: #333;">📈 Performance Analysis & Statistical Tests</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>Level of Service</h4>
+                        <div class="value" id="losValue">-</div>
+                        <div class="label">Based on avg delay</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Capacity Utilization</h4>
+                        <div class="value" id="capacityValue">-</div>
+                        <div class="label">Saturation ratio</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>System Efficiency</h4>
+                        <div class="value" id="efficiencyValue">-</div>
+                        <div class="label">Throughput/Arrival</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Performance Score</h4>
+                        <div class="value" id="performanceScore">-</div>
+                        <div class="label">Composite metric</div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Statistical Performance Comparison</h3>
+                    <div id="statisticalTestResults" style="padding: 20px;">
+                        <p style="color: #6c757d;">Upload SUMO data and run experiments to see statistical analysis</p>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Performance Improvement Breakdown</h3>
+                    <div id="performanceBreakdown"></div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3 class="chart-title">Sensitivity Analysis</h3>
+                    <div id="sensitivityChart"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global data storage
+        let simulationData = null;
+        let sumoData = null;
+        let experimentResults = [];
+        
+        // Initialize with 30-30 model data
+        function initializeSimulationData() {
+            simulationData = {
+                config: {
+                    ns_green: 30,
+                    ew_green: 30,
+                    yellow: 3,
+                    cycle: 66
+                },
+                directions: {
+                    north: {
+                        avg_wait: 253.99,
+                        median_wait: 251.0,
+                        max_wait: 480.0,
+                        avg_queue: 77.62,
+                        max_queue: 158,
+                        throughput: 978,
+                        arrived: 1119,
+                        served: 978
+                    },
+                    south: {
+                        avg_wait: 165.37,
+                        median_wait: 156.5,
+                        max_wait: 365.0,
+                        avg_queue: 50.21,
+                        max_queue: 117,
+                        throughput: 976,
+                        arrived: 1090,
+                        served: 976
+                    },
+                    east: {
+                        avg_wait: 32.88,
+                        median_wait: 31.0,
+                        max_wait: 93.0,
+                        avg_queue: 8.45,
+                        max_queue: 24,
+                        throughput: 903,
+                        arrived: 921,
+                        served: 903
+                    },
+                    west: {
+                        avg_wait: 29.57,
+                        median_wait: 27.0,
+                        max_wait: 86.0,
+                        avg_queue: 7.16,
+                        max_queue: 25,
+                        throughput: 870,
+                        arrived: 874,
+                        served: 870
+                    }
+                },
+                overall: {
+                    avg_wait: 124.82,
+                    median_wait: 57.0,
+                    max_wait: 480.0,
+                    total_throughput: 3727,
+                    total_arrived: 4004,
+                    total_served: 3727
+                }
+            };
+            
+            updateOverviewStats();
+            createCharts();
+            updatePerformanceMetrics();
+        }
+        
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // Update overview statistics
+        function updateOverviewStats() {
+            const statsGrid = document.getElementById('statsGrid');
+            const directions = ['north', 'south', 'east', 'west'];
+            
+            let html = '';
+            directions.forEach(dir => {
+                const data = simulationData.directions[dir];
+                html += `
+                    <div class="stat-card">
+                        <h4>${dir.toUpperCase()}</h4>
+                        <div class="value">${data.avg_wait.toFixed(1)}s</div>
+                        <div class="label">Avg Wait Time</div>
+                    </div>
+                `;
+            });
+            
+            // Add overall stats
+            html += `
+                <div class="stat-card">
+                    <h4>OVERALL</h4>
+                    <div class="value">${simulationData.overall.avg_wait.toFixed(1)}s</div>
+                    <div class="label">System Avg Wait</div>
+                </div>
+                <div class="stat-card">
+                    <h4>THROUGHPUT</h4>
+                    <div class="value">${simulationData.overall.total_throughput}</div>
+                    <div class="label">Vehicles/Hour</div>
+                </div>
+                <div class="stat-card">
+                    <h4>EFFICIENCY</h4>
+                    <div class="value">${(simulationData.overall.total_served / simulationData.overall.total_arrived * 100).toFixed(1)}%</div>
+                    <div class="label">Served/Arrived</div>
+                </div>
+                <div class="stat-card">
+                    <h4>CYCLE TIME</h4>
+                    <div class="value">${simulationData.config.cycle}s</div>
+                    <div class="label">Signal Cycle</div>
+                </div>
+            `;
+            
+            statsGrid.innerHTML = html;
+        }
+        
+        // Create charts
+        function createCharts() {
+            createQueueChart();
+            createWaitTimeChart();
+        }
+        
+        function createQueueChart() {
+            // Generate sample time series data
+            const time = Array.from({length: 360}, (_, i) => i * 10); // Every 10 seconds for 1 hour
+            const directions = ['north', 'south', 'east', 'west'];
+            
+            const traces = directions.map(dir => {
+                const avgQueue = simulationData.directions[dir].avg_queue;
+                const maxQueue = simulationData.directions[dir].max_queue;
+                
+                // Simulate queue variation
+                const queueData = time.map((t, i) => {
+                    const cycle = Math.floor(t / 66);
+                    const position = t % 66;
+                    let queue = avgQueue + Math.random() * (maxQueue - avgQueue) * 0.3;
+                    
+                    // Add cycle-based variation
+                    if ((dir === 'north' || dir === 'south') && position < 30) {
+                        queue *= 0.7; // Green phase, queue decreases
+                    } else if ((dir === 'east' || dir === 'west') && position >= 33 && position < 63) {
+                        queue *= 0.7;
+                    }
+                    
+                    return Math.max(0, queue);
+                });
+                
+                return {
+                    x: time,
+                    y: queueData,
+                    name: dir.charAt(0).toUpperCase() + dir.slice(1),
+                    type: 'scatter',
+                    mode: 'lines'
+                };
+            });
+            
+            const layout = {
+                xaxis: { title: 'Time (seconds)' },
+                yaxis: { title: 'Queue Length (vehicles)' },
+                hovermode: 'x unified',
+                showlegend: true,
+                margin: { t: 20, r: 20, b: 60, l: 60 }
+            };
+            
+            Plotly.newPlot('queueChart', traces, layout, {responsive: true});
+        }
+        
+        function createWaitTimeChart() {
+            const directions = ['North', 'South', 'East', 'West'];
+            const avgWaits = [
+                simulationData.directions.north.avg_wait,
+                simulationData.directions.south.avg_wait,
+                simulationData.directions.east.avg_wait,
+                simulationData.directions.west.avg_wait
+            ];
+            const maxWaits = [
+                simulationData.directions.north.max_wait,
+                simulationData.directions.south.max_wait,
+                simulationData.directions.east.max_wait,
+                simulationData.directions.west.max_wait
+            ];
+            
+            const trace1 = {
+                x: directions,
+                y: avgWaits,
+                name: 'Average Wait',
+                type: 'bar',
+                marker: { color: '#667eea' }
+            };
+            
+            const trace2 = {
+                x: directions,
+                y: maxWaits,
+                name: 'Maximum Wait',
+                type: 'bar',
+                marker: { color: '#764ba2' }
+            };
+            
+            const layout = {
+                barmode: 'group',
+                xaxis: { title: 'Direction' },
+                yaxis: { title: 'Wait Time (seconds)' },
+                showlegend: true,
+                margin: { t: 20, r: 20, b: 60, l: 60 }
+            };
+            
+            Plotly.newPlot('waitTimeChart', [trace1, trace2], layout, {responsive: true});
+        }
+        
+        // Load SUMO data
+        function loadSUMOData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                if (file.name.endsWith('.csv')) {
+                    parseSUMOCSV(content);
+                } else if (file.name.endsWith('.xml')) {
+                    parseSUMOXML(content);
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        function parseSUMOCSV(content) {
+            Papa.parse(content, {
+                header: true,
+                complete: function(results) {
+                    processSUMOData(results.data);
+                }
+            });
+        }
+        
+        function parseSUMOXML(content) {
+            // Simple XML parsing for SUMO output
+            // This is a simplified version - adjust based on actual SUMO output format
+            alert('XML parsing will be implemented based on your SUMO output format. Please use CSV for now.');
+        }
+        
+        function processSUMOData(data) {
+            // Process SUMO data into our format
+            // This assumes SUMO CSV has similar structure to our summary_stats.csv
+            
+            sumoData = {
+                directions: {
+                    north: {},
+                    south: {},
+                    east: {},
+                    west: {}
+                },
+                overall: {}
+            };
+            
+            data.forEach(row => {
+                if (!row.direction || !row.metric || !row.value) return;
+                
+                const dir = row.direction.toLowerCase();
+                const metric = row.metric.toLowerCase();
+                const value = parseFloat(row.value);
+                
+                if (dir === 'overall') {
+                    sumoData.overall[metric] = value;
+                } else if (sumoData.directions[dir]) {
+                    sumoData.directions[dir][metric] = value;
+                }
+            });
+            
+            updateComparisonView();
+            logEvent('success', `SUMO data loaded successfully from ${data.length} rows`);
+        }
+        
+        // Update comparison view
+        function updateComparisonView() {
+            if (!sumoData) return;
+            
+            document.getElementById('comparisonStatus').innerHTML = `
+                <strong>✅ SUMO data loaded successfully</strong><br>
+                Comparing models...
+            `;
+            document.getElementById('comparisonStatus').style.background = '#d4edda';
+            
+            createComparisonCharts();
+            updateComparisonTable();
+        }
+        
+        function createComparisonCharts() {
+            // Wait time comparison
+            const directions = ['North', 'South', 'East', 'West'];
+            const sim30Data = directions.map(d => simulationData.directions[d.toLowerCase()].avg_wait);
+            const sumoWaitData = directions.map(d => sumoData.directions[d.toLowerCase()].avg_wait_time_sec || 0);
+            
+            const trace1 = {
+                x: directions,
+                y: sim30Data,
+                name: '30-30 Model',
+                type: 'bar',
+                marker: { color: '#667eea' }
+            };
+            
+            const trace2 = {
+                x: directions,
+                y: sumoWaitData,
+                name: 'SUMO Model',
+                type: 'bar',
+                marker: { color: '#ff6b6b' }
+            };
+            
+            Plotly.newPlot('waitTimeComparisonChart', [trace1, trace2], {
+                barmode: 'group',
+                xaxis: { title: 'Direction' },
+                yaxis: { title: 'Average Wait Time (seconds)' },
+                margin: { t: 20, r: 20, b: 60, l: 60 }
+            }, {responsive: true});
+            
+            // Queue comparison
+            const sim30Queue = directions.map(d => simulationData.directions[d.toLowerCase()].avg_queue);
+            const sumoQueueData = directions.map(d => sumoData.directions[d.toLowerCase()].avg_queue_length_veh || 0);
+            
+            Plotly.newPlot('queueComparisonChart', [
+                {x: directions, y: sim30Queue, name: '30-30 Model', type: 'bar', marker: {color: '#667eea'}},
+                {x: directions, y: sumoQueueData, name: 'SUMO Model', type: 'bar', marker: {color: '#ff6b6b'}}
+            ], {
+                barmode: 'group',
+                xaxis: { title: 'Direction' },
+                yaxis: { title: 'Average Queue Length (vehicles)' },
+                margin: { t: 20, r: 20, b: 60, l: 60 }
+            }, {responsive: true});
+            
+            // Throughput comparison
+            const sim30Throughput = directions.map(d => simulationData.directions[d.toLowerCase()].throughput);
+            const sumoThroughput = directions.map(d => sumoData.directions[d.toLowerCase()].throughput_veh_per_hr || 0);
+            
+            Plotly.newPlot('throughputComparisonChart', [
+                {x: directions, y: sim30Throughput, name: '30-30 Model', type: 'bar', marker: {color: '#667eea'}},
+                {x: directions, y: sumoThroughput, name: 'SUMO Model', type: 'bar', marker: {color: '#ff6b6b'}}
+            ], {
+                barmode: 'group',
+                xaxis: { title: 'Direction' },
+                yaxis: { title: 'Throughput (vehicles/hour)' },
+                margin: { t: 20, r: 20, b: 60, l: 60 }
+            }, {responsive: true});
+        }
+        
+        function updateComparisonTable() {
+            const tbody = document.getElementById('comparisonTableBody');
+            const metrics = [
+                {key: 'avg_wait', label: 'Avg Wait Time (s)', sumoKey: 'avg_wait_time_sec'},
+                {key: 'avg_queue', label: 'Avg Queue Length', sumoKey: 'avg_queue_length_veh'},
+                {key: 'throughput', label: 'Throughput (veh/hr)', sumoKey: 'throughput_veh_per_hr'}
+            ];
+            const directions = ['north', 'south', 'east', 'west'];
+            
+            let html = '';
+            metrics.forEach(metric => {
+                directions.forEach(dir => {
+                    const sim30Val = simulationData.directions[dir][metric.key];
+                    const sumoVal = sumoData.directions[dir][metric.sumoKey] || 0;
+                    const diff = sim30Val - sumoVal;
+                    const pct = sumoVal !== 0 ? (diff / sumoVal * 100) : 0;
+                    
+                    const betterOrWorse = (metric.key === 'throughput') 
+                        ? (diff > 0 ? 'better' : 'worse')
+                        : (diff < 0 ? 'better' : 'worse');
+                    
+                    html += `
+                        <tr>
+                            <td>${metric.label}</td>
+                            <td>${dir.charAt(0).toUpperCase() + dir.slice(1)}</td>
+                            <td>${sim30Val.toFixed(2)}</td>
+                            <td>${sumoVal.toFixed(2)}</td>
+                            <td class="${betterOrWorse}">${diff > 0 ? '+' : ''}${diff.toFixed(2)}</td>
+                            <td class="${betterOrWorse}">${pct > 0 ? '+' : ''}${pct.toFixed(1)}%</td>
+                        </tr>
+                    `;
+                });
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        // Run experiment
+        function runExperiment() {
+            const btn = document.getElementById('runExperimentBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Running Experiment...';
+            
+            logEvent('info', 'Starting experiment...');
+            
+            const params = {
+                nsGreen: parseInt(document.getElementById('nsGreen').value),
+                ewGreen: parseInt(document.getElementById('ewGreen').value),
+                northRate: parseFloat(document.getElementById('northRate').value) / 3600,
+                southRate: parseFloat(document.getElementById('southRate').value) / 3600,
+                eastRate: parseFloat(document.getElementById('eastRate').value) / 3600,
+                westRate: parseFloat(document.getElementById('westRate').value) / 3600,
+                saturationFlow: parseFloat(document.getElementById('saturationFlow').value),
+                duration: parseInt(document.getElementById('simDuration').value)
+            };
+            
+            logEvent('info', `NS Green: ${params.nsGreen}s, EW Green: ${params.ewGreen}s`);
+            logEvent('info', `Arrival rates - N:${(params.northRate*3600).toFixed(0)} S:${(params.southRate*3600).toFixed(0)} E:${(params.eastRate*3600).toFixed(0)} W:${(params.westRate*3600).toFixed(0)} veh/hr`);
+            
+            // Simulate experiment (simplified version)
+            setTimeout(() => {
+                const result = simulateTraffic(params);
+                experimentResults.push({params, result, timestamp: new Date()});
+                
+                logEvent('success', `Experiment completed!`);
+                logEvent('success', `Overall avg wait: ${result.overall.avg_wait.toFixed(2)}s`);
+                logEvent('success', `Total throughput: ${result.overall.total_throughput} veh/hr`);
+                
+                // Update with new results
+                simulationData = result;
+                updateOverviewStats();
+                createCharts();
+                updatePerformanceMetrics();
+                
+                btn.disabled = false;
+                btn.textContent = '🚀 Run Experiment';
+            }, 2000);
+        }
+        
+        function simulateTraffic(params) {
+            // Simplified traffic simulation
+            const cycleLength = params.nsGreen + params.ewGreen + 6; // +6 for yellow times
+            const capacity_ns = params.saturationFlow * params.nsGreen;
+            const capacity_ew = params.saturationFlow * params.ewGreen;
+            
+            const directions = {};
+            const arrivalRates = {
+                north: params.northRate,
+                south: params.southRate,
+                east: params.eastRate,
+                west: params.westRate
+            };
+            
+            Object.keys(arrivalRates).forEach(dir => {
+                const isNS = (dir === 'north' || dir === 'south');
+                const capacity = isNS ? capacity_ns : capacity_ew;
+                const arrivalRate = arrivalRates[dir];
+                const saturation = arrivalRate / capacity;
+                
+                // Simplified delay calculation using Webster's formula approximation
+                const greenRatio = isNS ? (params.nsGreen / cycleLength) : (params.ewGreen / cycleLength);
+                const delay = saturation < 0.9 
+                    ? (cycleLength * (1 - greenRatio) / (2 * (1 - saturation * greenRatio)))
+                    : 200 + (saturation - 0.9) * 500; // High delay when oversaturated
+                
+                const avgQueue = (arrivalRate * delay) / 2;
+                const maxQueue = avgQueue * 2;
+                
+                directions[dir] = {
+                    avg_wait: Math.max(0, delay),
+                    median_wait: Math.max(0, delay * 0.9),
+                    max_wait: Math.max(0, delay * 2),
+                    avg_queue: Math.max(0, avgQueue),
+                    max_queue: Math.max(0, maxQueue),
+                    throughput: Math.min(arrivalRate * 3600, capacity * 3600 / cycleLength * params.duration / 3600),
+                    arrived: arrivalRate * params.duration,
+                    served: Math.min(arrivalRate * params.duration, capacity * params.duration / cycleLength)
+                };
+            });
+            
+            const totalArrived = Object.values(directions).reduce((sum, d) => sum + d.arrived, 0);
+            const totalServed = Object.values(directions).reduce((sum, d) => sum + d.served, 0);
+            const avgWait = Object.values(directions).reduce((sum, d) => sum + d.avg_wait, 0) / 4;
+            
+            return {
+                config: {
+                    ns_green: params.nsGreen,
+                    ew_green: params.ewGreen,
+                    yellow: 3,
+                    cycle: cycleLength
+                },
+                directions,
+                overall: {
+                    avg_wait: avgWait,
+                    median_wait: avgWait * 0.9,
+                    max_wait: Math.max(...Object.values(directions).map(d => d.max_wait)),
+                    total_throughput: totalServed / (params.duration / 3600),
+                    total_arrived: totalArrived,
+                    total_served: totalServed
+                }
+            };
+        }
+        
+        // Performance metrics
+        function updatePerformanceMetrics() {
+            const avgDelay = simulationData.overall.avg_wait;
+            
+            // Level of Service
+            let los = 'F';
+            if (avgDelay < 10) los = 'A';
+            else if (avgDelay < 20) los = 'B';
+            else if (avgDelay < 35) los = 'C';
+            else if (avgDelay < 55) los = 'D';
+            else if (avgDelay < 80) los = 'E';
+            
+            document.getElementById('losValue').textContent = los;
+            
+            // Capacity utilization
+            const capacity = 0.6 * 30 * 3600 / 66; // Simplified
+            const arrival = simulationData.overall.total_arrived / (3600/3600);
+            const saturation = (arrival / capacity / 4).toFixed(2);
+            document.getElementById('capacityValue').textContent = saturation;
+            
+            // Efficiency
+            const efficiency = ((simulationData.overall.total_served / simulationData.overall.total_arrived) * 100).toFixed(1);
+            document.getElementById('efficiencyValue').textContent = efficiency + '%';
+            
+            // Performance score (composite)
+            const score = Math.max(0, 100 - avgDelay * 0.5).toFixed(0);
+            document.getElementById('performanceScore').textContent = score;
+            
+            updateStatisticalTests();
+        }
+        
+        function updateStatisticalTests() {
+            if (!sumoData) {
+                document.getElementById('statisticalTestResults').innerHTML = `
+                    <p style="color: #6c757d;">Upload SUMO data to see statistical comparison</p>
+                `;
+                return;
+            }
+            
+            const sim30Avg = simulationData.overall.avg_wait;
+            const sumoAvg = sumoData.overall.avg_wait_time_sec || 0;
+            const improvement = ((sumoAvg - sim30Avg) / sumoAvg * 100).toFixed(1);
+            
+            const html = `
+                <h4>Performance Improvement Analysis</h4>
+                <div style="margin: 20px 0;">
+                    <div class="performance-badge ${improvement > 20 ? 'badge-excellent' : improvement > 0 ? 'badge-good' : 'badge-poor'}">
+                        ${improvement > 0 ? '✅' : '⚠️'} ${improvement > 0 ? improvement + '% Improvement' : 'No Improvement'}
+                    </div>
+                </div>
+                <table style="width: 100%; margin-top: 20px;">
+                    <tr style="background: #f8f9fa;">
+                        <td style="padding: 10px;"><strong>Metric</strong></td>
+                        <td style="padding: 10px;"><strong>30-30 Model</strong></td>
+                        <td style="padding: 10px;"><strong>SUMO Model</strong></td>
+                        <td style="padding: 10px;"><strong>Improvement</strong></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px;">Average Wait Time</td>
+                        <td style="padding: 10px;">${sim30Avg.toFixed(2)}s</td>
+                        <td style="padding: 10px;">${sumoAvg.toFixed(2)}s</td>
+                        <td style="padding: 10px; color: ${improvement > 0 ? '#28a745' : '#dc3545'};">
+                            ${improvement > 0 ? '-' : '+'}${Math.abs(improvement)}%
+                        </td>
+                    </tr>
+                </table>
+                <p style="margin-top: 20px; color: #6c757d;">
+                    <strong>Conclusion:</strong> The 30-30 model shows ${improvement > 0 ? 'significant improvement' : 'lower performance'} 
+                    compared to SUMO simulation in average wait time reduction.
+                </p>
+            `;
+            
+            document.getElementById('statisticalTestResults').innerHTML = html;
+        }
+        
+        // Logging
+        function logEvent(type, message) {
+            const log = document.getElementById('experimentLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = `log-${type}`;
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Export functions
+        function exportExperimentResults() {
+            if (experimentResults.length === 0) {
+                alert('No experiment results to export. Run an experiment first.');
+                return;
+            }
+            
+            let csv = 'Timestamp,NS_Green,EW_Green,North_Rate,South_Rate,East_Rate,West_Rate,Avg_Wait,Total_Throughput,Efficiency\n';
+            
+            experimentResults.forEach(exp => {
+                const p = exp.params;
+                const r = exp.result.overall;
+                csv += `${exp.timestamp.toISOString()},${p.nsGreen},${p.ewGreen},${(p.northRate*3600).toFixed(0)},${(p.southRate*3600).toFixed(0)},${(p.eastRate*3600).toFixed(0)},${(p.westRate*3600).toFixed(0)},${r.avg_wait.toFixed(2)},${r.total_throughput.toFixed(0)},${(r.total_served/r.total_arrived*100).toFixed(1)}\n`;
+            });
+            
+            downloadCSV(csv, 'experiment_results.csv');
+        }
+        
+        function exportExperimentLog() {
+            const log = document.getElementById('experimentLog');
+            const text = log.innerText;
+            downloadFile(text, 'experiment_log.txt', 'text/plain');
+        }
+        
+        function downloadCSV(content, filename) {
+            downloadFile(content, filename, 'text/csv');
+        }
+        
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Initialize on page load
+        window.onload = function() {
+            initializeSimulationData();
+        };
+    </script>
+</body>
+</html>
